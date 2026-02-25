@@ -30,7 +30,6 @@ module Rubyagents
       @interrupt_switch = false
 
       if reset || @memory.nil?
-        UI.welcome
         @memory = Memory.new(system_prompt: system_prompt, task: task)
       else
         memory.add_user_message(task)
@@ -42,7 +41,7 @@ module Rubyagents
         raise InterruptError, "Agent interrupted" if @interrupt_switch
 
         maybe_plan(step_number)
-        UI.step_header(step_number, max_steps)
+        UI.step_header(step_number, context: previous_step_context) if step_number > 1
 
         # Call LLM with timing
         llm_duration, response = timed { generate_response(memory.to_messages, &on_stream) }
@@ -266,8 +265,20 @@ module Rubyagents
     def format_output(result)
       parts = []
       parts << result[:output] unless result[:output].to_s.empty?
-      parts << "=> #{result[:result].inspect}" unless result[:result].nil?
+      parts << result[:result].inspect unless result[:result].nil?
       parts.join("\n")
+    end
+
+    def previous_step_context
+      last = memory.last_step
+      return nil unless last.is_a?(ActionStep)
+
+      if last.tool_calls&.any?
+        names = last.tool_calls.map { |tc| tc.function.name }.uniq
+        names.reject { |n| n == "final_answer" }.join(", ").then { |s| s.empty? ? nil : s }
+      elsif last.code
+        "code execution"
+      end
     end
 
     def timed

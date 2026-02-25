@@ -115,6 +115,7 @@ module Rubyagents
     end
 
     def single_query(query)
+      UI.welcome
       agent = build_agent
       agent.run(query)
     end

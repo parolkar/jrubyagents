@@ -1,29 +1,15 @@
 # frozen_string_literal: true
 
 require "lipgloss"
-require "glamour"
+require "rouge"
 
 module Rubyagents
   module UI
     SPINNER_FRAMES = %w[⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏].freeze
 
     module Styles
-      def self.thought
-        @thought ||= Lipgloss::Style.new
-          .bold(true)
-          .foreground("#FF9F1C")
-      end
-
-      def self.code_header
-        @code_header ||= Lipgloss::Style.new
-          .bold(true)
-          .foreground("#2EC4B6")
-      end
-
-      def self.observation
-        @observation ||= Lipgloss::Style.new
-          .bold(true)
-          .foreground("#E71D36")
+      def self.label
+        @label ||= Lipgloss::Style.new.faint(true)
       end
 
       def self.plan_label
@@ -41,21 +27,10 @@ module Rubyagents
           .padding(0, 2)
       end
 
-      def self.final_answer_label
-        @final_answer_label ||= Lipgloss::Style.new
+      def self.result_header
+        @result_header ||= Lipgloss::Style.new
           .bold(true)
-          .foreground("#011627")
-          .background("#2EC4B6")
-          .padding(0, 1)
-      end
-
-      def self.final_answer_box
-        @final_answer_box ||= Lipgloss::Style.new
-          .border(:rounded)
-          .border_foreground("#2EC4B6")
-          .padding(0, 2)
-          .margin(1, 0)
-          .width(76)
+          .foreground("#2EC4B6")
       end
 
       def self.error
@@ -64,21 +39,14 @@ module Rubyagents
           .foreground("#FF0000")
       end
 
-      def self.step_number
-        @step_number ||= Lipgloss::Style.new
+      def self.step_header
+        @step_header ||= Lipgloss::Style.new
           .bold(true)
           .foreground("#7B61FF")
       end
 
       def self.dim
-        @dim ||= Lipgloss::Style.new
-          .faint(true)
-      end
-
-      def self.metrics
-        @metrics ||= Lipgloss::Style.new
-          .faint(true)
-          .italic(true)
+        @dim ||= Lipgloss::Style.new.faint(true)
       end
 
       def self.spinner_style
@@ -115,21 +83,26 @@ module Rubyagents
     end
 
     class << self
-      def step_header(number, max_steps)
-        puts Styles.step_number.render("━━━ Step #{number}/#{max_steps} ━━━")
+      def step_header(number, context: nil)
+        label = "━━━ Step #{number}"
+        label << " · #{context}" if context
+        label << " ━━━"
+        puts Styles.step_header.render(label)
       end
 
       def thought(text)
-        puts Styles.thought.render("Thought: ") + text
+        puts Styles.label.render("Thought: ") + text
       end
 
       def code(source)
-        puts Styles.code_header.render("Code:")
-        puts Glamour.render("```ruby\n#{source}\n```", style: "dark", width: 100)
+        puts
+        highlighted = rouge_formatter.format(rouge_lexer.lex(source))
+        highlighted.each_line { |line| puts "  #{line.rstrip}" }
+        puts
       end
 
       def observation(text)
-        puts Styles.observation.render("Observation: ") + truncate(text, 500)
+        puts Styles.label.render("Result: ") + truncate(text, 200)
       end
 
       def error(text)
@@ -148,20 +121,19 @@ module Rubyagents
         parts << token_usage.to_s if token_usage
         return if parts.empty?
 
-        puts Styles.metrics.render("  #{parts.join(" | ")}")
+        puts Styles.dim.render(parts.join(" | "))
+        puts
       end
 
       def run_summary(total_steps:, total_duration:, total_tokens:)
         parts = ["#{total_steps} steps", format("%.1fs total", total_duration)]
         parts << total_tokens.to_s if total_tokens.total_tokens > 0
-        puts Styles.dim.render("\n  #{parts.join(" | ")}")
+        puts Styles.dim.render(parts.join(" | "))
       end
 
       def final_answer(text)
-        label = Styles.final_answer_label.render(" Final Answer ")
-        wrapped = word_wrap(text.to_s, 70)
-        body = Styles.final_answer_box.render(wrapped)
-        puts "\n#{label}\n#{body}"
+        puts Styles.result_header.render("\n━━━ Result ━━━")
+        puts word_wrap(text.to_s, 76)
       end
 
       def spinner(message)
@@ -181,6 +153,14 @@ module Rubyagents
       end
 
       private
+
+      def rouge_lexer
+        @rouge_lexer ||= Rouge::Lexers::Ruby.new
+      end
+
+      def rouge_formatter
+        @rouge_formatter ||= Rouge::Formatters::Terminal256.new(Rouge::Themes::Monokai.new)
+      end
 
       def truncate(text, max)
         return text if text.length <= max

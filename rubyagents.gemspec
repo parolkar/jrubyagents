@@ -31,8 +31,8 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "lipgloss", "~> 0.2"
-  spec.add_dependency "glamour", "~> 0.2"
   spec.add_dependency "reverse_markdown", "~> 3.0"
+  spec.add_dependency "rouge", "~> 4.0"
   spec.add_dependency "json-schema", "~> 4.0"
   spec.add_dependency "bigdecimal"
   spec.add_dependency "mcp", "~> 0.7"
