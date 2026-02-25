@@ -12,6 +12,7 @@ module Rubyagents
 
       def generate(messages, tools: nil, &on_stream)
         require "ruby_llm"
+        self.class.configure_ruby_llm
 
         chat = build_chat
         load_messages(chat, messages)
@@ -24,6 +25,29 @@ module Rubyagents
         end
 
         extract_response(chat, response)
+      rescue RubyLLM::ConfigurationError => e
+        raise Error, "Model configuration error: #{e.message}. Set the appropriate API key env var."
+      rescue RubyLLM::ModelNotFoundError => e
+        raise Error, "Unknown model '#{model_name}'. Check the model name or set a provider prefix (e.g. 'openai/#{model_name}')."
+      rescue RubyLLM::UnauthorizedError => e
+        raise Error, "API authentication failed: #{e.message}. Check your API key."
+      rescue RubyLLM::Error => e
+        raise Error, "LLM API error: #{e.message}"
+      end
+
+      def self.configure_ruby_llm
+        return if @configured
+
+        RubyLLM.configure do |config|
+          config.openai_api_key = ENV["OPENAI_API_KEY"] if ENV["OPENAI_API_KEY"]
+          config.anthropic_api_key = ENV["ANTHROPIC_API_KEY"] if ENV["ANTHROPIC_API_KEY"]
+          config.gemini_api_key = ENV["GEMINI_API_KEY"] if ENV["GEMINI_API_KEY"]
+          config.deepseek_api_key = ENV["DEEPSEEK_API_KEY"] if ENV["DEEPSEEK_API_KEY"]
+          config.openrouter_api_key = ENV["OPENROUTER_API_KEY"] if ENV["OPENROUTER_API_KEY"]
+          config.ollama_api_base = ENV["OLLAMA_HOST"] if ENV["OLLAMA_HOST"]
+        end
+
+        @configured = true
       end
 
       private
