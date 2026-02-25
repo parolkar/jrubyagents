@@ -39,12 +39,6 @@ module Rubyagents
           .foreground("#FF0000")
       end
 
-      def self.step_header
-        @step_header ||= Lipgloss::Style.new
-          .bold(true)
-          .foreground("#7B61FF")
-      end
-
       def self.dim
         @dim ||= Lipgloss::Style.new.faint(true)
       end
@@ -83,13 +77,6 @@ module Rubyagents
     end
 
     class << self
-      def step_header(number, context: nil)
-        label = "━━━ Step #{number}"
-        label << " · #{context}" if context
-        label << " ━━━"
-        puts Styles.step_header.render(label)
-      end
-
       def thought(text)
         puts Styles.label.render("Thought: ") + text
       end

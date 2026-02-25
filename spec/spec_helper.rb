@@ -21,7 +21,6 @@ RSpec.configure do |config|
   # Suppress UI output during tests
   config.before do
     allow(Rubyagents::UI).to receive(:welcome)
-    allow(Rubyagents::UI).to receive(:step_header)
     allow(Rubyagents::UI).to receive(:thought)
     allow(Rubyagents::UI).to receive(:code)
     allow(Rubyagents::UI).to receive(:observation)
