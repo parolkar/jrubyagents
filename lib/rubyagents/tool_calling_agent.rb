@@ -55,14 +55,15 @@ module Rubyagents
           next
         end
 
+        status = UI.status("Running #{tool_name}...").start
         begin
           # Convert string keys to symbols for tool call
           sym_args = arguments.transform_keys(&:to_sym)
           result = tool.call(**sym_args)
-          UI.observation(result.to_s)
+          status.success!(result.to_s)
           results << result.to_s
         rescue => e
-          UI.error("#{e.class}: #{e.message}")
+          status.error!("#{e.class}: #{e.message}")
           results << "Error: #{e.message}"
         end
       end

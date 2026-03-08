@@ -157,7 +157,8 @@ module Rubyagents
         end
       end
 
-      parts = ["#{action_steps.size} steps", format("%.1fs total", total_duration)]
+      count = action_steps.size
+      parts = ["#{count} #{count == 1 ? "step" : "steps"}", format("%.1fs total", total_duration)]
       parts << total_tokens.to_s if total_tokens.total_tokens > 0
       io.puts UI::Styles.dim.render(parts.join(" | "))
     end

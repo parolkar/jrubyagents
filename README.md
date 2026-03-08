@@ -245,11 +245,6 @@ rubyagents -i
 | `final_answer_checks:` | `[]` | Array of procs `(answer, memory) -> bool` |
 | `step_callbacks:` | `[]` | Array of procs `(step, agent:) -> void` |
 
-## Credits
-
-- [@khasinski](https://github.com/khasinski) — creator and maintainer of rubyagents
-- [@parolkar](https://github.com/parolkar) — JRuby compatibility support
-
 ## License
 
 MIT

@@ -1,15 +1,20 @@
 # frozen_string_literal: true
 
-JRUBY = RUBY_ENGINE == "jruby"
+begin
+  require "lipgloss"
+rescue LoadError
+  # lipgloss unavailable (e.g. JRuby) -- NullStyle handles fallback below
+end
 
-require "lipgloss" unless JRUBY
 require "rouge"
 
 module Rubyagents
+  LIPGLOSS_AVAILABLE = defined?(Lipgloss)
+
   module UI
     SPINNER_FRAMES = %w[⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏].freeze
 
-    # Passthrough style used on JRuby where lipgloss is unavailable
+    # Passthrough style used when lipgloss is unavailable
     class NullStyle
       def render(text)
         text
@@ -17,15 +22,7 @@ module Rubyagents
     end
 
     module Styles
-      if JRUBY
-        def self.label;         NullStyle.new; end
-        def self.plan_label;    NullStyle.new; end
-        def self.plan_box;      NullStyle.new; end
-        def self.final_answer;  NullStyle.new; end
-        def self.error;         NullStyle.new; end
-        def self.dim;           NullStyle.new; end
-        def self.spinner_style; NullStyle.new; end
-      else
+      if LIPGLOSS_AVAILABLE
         def self.label
           @label ||= Lipgloss::Style.new.faint(true)
         end
@@ -65,6 +62,24 @@ module Rubyagents
           @spinner_style ||= Lipgloss::Style.new
             .foreground("#7B61FF")
         end
+
+        def self.success_dot
+          @success_dot ||= Lipgloss::Style.new.foreground("#00CC00")
+        end
+
+        def self.error_dot
+          @error_dot ||= Lipgloss::Style.new.foreground("#FF0000")
+        end
+      else
+        def self.label;         NullStyle.new; end
+        def self.plan_label;    NullStyle.new; end
+        def self.plan_box;      NullStyle.new; end
+        def self.final_answer;  NullStyle.new; end
+        def self.error;         NullStyle.new; end
+        def self.dim;           NullStyle.new; end
+        def self.spinner_style; NullStyle.new; end
+        def self.success_dot;   NullStyle.new; end
+        def self.error_dot;     NullStyle.new; end
       end
     end
 
@@ -95,6 +110,49 @@ module Rubyagents
       end
     end
 
+    class StatusLine
+      def initialize(message)
+        @message = message
+        @running = false
+        @frame = 0
+      end
+
+      def start
+        @running = true
+        @thread = Thread.new do
+          while @running
+            char = SPINNER_FRAMES[@frame % SPINNER_FRAMES.size]
+            styled = Styles.spinner_style.render(char)
+            print "\r\e[K#{styled} #{Styles.dim.render(@message)}"
+            $stdout.flush
+            @frame += 1
+            sleep 0.08
+          end
+        end
+        self
+      end
+
+      def success!(text)
+        finish!
+        display = text.length > 200 ? text[0...200] + Styles.dim.render("... (truncated)") : text
+        puts Styles.success_dot.render("● ") + Styles.label.render("Result: ") + display
+      end
+
+      def error!(text)
+        finish!
+        puts Styles.error_dot.render("● ") + Styles.error.render("Error: ") + text
+      end
+
+      private
+
+      def finish!
+        @running = false
+        @thread&.join
+        print "\r\e[K"
+        $stdout.flush
+      end
+    end
+
     class << self
       def thought(text)
         puts Styles.label.render("Thought: ") + text
@@ -115,6 +173,10 @@ module Rubyagents
         puts Styles.error.render("Error: ") + text
       end
 
+      def status(message)
+        StatusLine.new(message)
+      end
+
       def plan(text)
         label = Styles.plan_label.render(" Plan ")
         body = Styles.plan_box.render(text)
@@ -132,7 +194,7 @@ module Rubyagents
       end
 
       def run_summary(total_steps:, total_duration:, total_tokens:)
-        parts = ["#{total_steps} steps", format("%.1fs total", total_duration)]
+        parts = ["#{total_steps} #{total_steps == 1 ? "step" : "steps"}", format("%.1fs total", total_duration)]
         parts << total_tokens.to_s if total_tokens.total_tokens > 0
         puts Styles.dim.render(parts.join(" | "))
       end
@@ -147,10 +209,7 @@ module Rubyagents
       end
 
       def welcome
-        if JRUBY
-          puts "rubyagents v#{VERSION}"
-          puts "Code-first AI agents for Ruby"
-        else
+        if LIPGLOSS_AVAILABLE
           title = Lipgloss::Style.new
             .bold(true)
             .foreground("#7B61FF")
@@ -159,6 +218,9 @@ module Rubyagents
           version = Styles.dim.render("v#{VERSION}")
           puts "#{title} #{version}"
           puts Styles.dim.render("Code-first AI agents for Ruby")
+        else
+          puts "rubyagents v#{VERSION}"
+          puts "Code-first AI agents for Ruby"
         end
         puts
       end

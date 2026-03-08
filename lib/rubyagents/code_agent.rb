@@ -50,11 +50,13 @@ module Rubyagents
 
     def run_action(thought, code, response, llm_duration)
       UI.code(code)
+
+      status = UI.status("Executing...").start
       exec_duration, result = timed { execute(code) }
       total_duration = llm_duration + exec_duration
 
       if result[:error]
-        UI.error(result[:error])
+        status.error!(result[:error])
         UI.step_metrics(duration: total_duration, token_usage: response.token_usage)
         step = memory.add_step(thought: thought, code: code, error: result[:error],
                                duration: total_duration, token_usage: response.token_usage)
@@ -62,7 +64,7 @@ module Rubyagents
         nil
       else
         output = format_output(result)
-        UI.observation(output)
+        status.success!(output)
         UI.step_metrics(duration: total_duration, token_usage: response.token_usage)
 
         step = memory.add_step(thought: thought, code: code, observation: output,
@@ -74,12 +76,8 @@ module Rubyagents
     end
 
     def execute(code)
-      spin = UI.spinner("Executing code...")
-      spin.start
       sandbox = Sandbox.new(tools: tools, timeout: @timeout)
-      result = sandbox.execute(code)
-      spin.stop
-      result
+      sandbox.execute(code)
     end
   end
 end
