@@ -111,6 +111,23 @@ RSpec.describe Gemlings::CodeAgent do
     end
   end
 
+  describe "planning_interval: 0" do
+    it "does not plan and does not raise ZeroDivisionError" do
+      response = Gemlings::ChatMessage.new(
+        role: "assistant",
+        content: "Thought: Done.\nCode:\n```ruby\nfinal_answer(answer: \"ok\")\n```",
+        token_usage: Gemlings::TokenUsage.new(input_tokens: 10, output_tokens: 20)
+      )
+
+      allow(model).to receive(:generate).and_return(response)
+
+      agent = described_class.new(model: model, planning_interval: 0)
+      result = agent.run("Test")
+      expect(result).to eq("ok")
+      expect(model).to have_received(:generate).once
+    end
+  end
+
   describe "#interrupt" do
     it "raises InterruptError on next step" do
       response = Gemlings::ChatMessage.new(

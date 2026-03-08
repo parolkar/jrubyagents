@@ -109,6 +109,7 @@ module Gemlings
     transport = MCP::StdioTransport.new(command: command)
     response = transport.send_request(request: { method: "tools/list", params: {} })
     tools = response.dig("result", "tools") || []
+    return (transport.close; []) if tools.empty?
     tools.map { |t| MCP::MCPToolWrapper.for(t, transport) }
   end
 
@@ -119,6 +120,7 @@ module Gemlings
     tool_def = tools.find { |t| t["name"] == tool_name }
 
     unless tool_def
+      transport.close
       available = tools.map { |t| t["name"] }.join(", ")
       raise ArgumentError, "Tool #{tool_name.inspect} not found. Available: #{available}"
     end

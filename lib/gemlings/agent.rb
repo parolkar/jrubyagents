@@ -180,7 +180,7 @@ module Gemlings
     end
 
     def maybe_plan(step_number)
-      return unless planning_interval
+      return unless planning_interval&.positive?
       if step_number == 1
         run_planning_step(initial: true)
       elsif (step_number % planning_interval) == 1

@@ -116,10 +116,37 @@ RSpec.describe Gemlings::MCP do
       expect(tool.call(message: "hello")).to eq("hello")
     end
 
-    it "raises ArgumentError for unknown tool name" do
+    it "raises ArgumentError and closes transport for unknown tool name" do
       expect {
         Gemlings.tool_from_mcp(command: ["ruby", MOCK_SERVER], tool_name: "nonexistent")
       }.to raise_error(ArgumentError, /not found.*Available: echo, add/)
+    end
+  end
+
+  describe "transport cleanup" do
+    it "closes transport when tools_from_mcp returns no tools" do
+      transport = instance_double(Gemlings::MCP::StdioTransport)
+      allow(Gemlings::MCP::StdioTransport).to receive(:new).and_return(transport)
+      allow(transport).to receive(:send_request).and_return({ "result" => { "tools" => [] } })
+      allow(transport).to receive(:close)
+
+      result = Gemlings.tools_from_mcp(command: ["fake"])
+      expect(result).to eq([])
+      expect(transport).to have_received(:close)
+    end
+
+    it "closes transport when tool_from_mcp raises ArgumentError" do
+      transport = instance_double(Gemlings::MCP::StdioTransport)
+      allow(Gemlings::MCP::StdioTransport).to receive(:new).and_return(transport)
+      allow(transport).to receive(:send_request).and_return({
+        "result" => { "tools" => [{ "name" => "foo", "description" => "x" }] }
+      })
+      allow(transport).to receive(:close)
+
+      expect {
+        Gemlings.tool_from_mcp(command: ["fake"], tool_name: "bar")
+      }.to raise_error(ArgumentError)
+      expect(transport).to have_received(:close)
     end
   end
 end
